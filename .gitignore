@@ -14,7 +14,9 @@ config.js
 *.pfx
 
 # Supabase local state
-supabase/frontend/supabase.config.js
+# Note: supabase.config.js is intentionally committed — it contains only the
+# public anon key (sb_publishable_*) which is safe to expose in client-side code.
+# RLS policies enforce data security server-side.
 supabase/.env
 supabase/.env.local
 supabase/.temp/
