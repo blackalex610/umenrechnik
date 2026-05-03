@@ -9,7 +9,49 @@ if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.
   self.addEventListener('fetch', event => event.respondWith(fetch(event.request)));
 } else {
 
-const CACHE_NAME = 'umen-rechnik-v2';
+// ── Production: redirect legacy Python backend calls to Supabase edge function ──
+const SUPABASE_URL = 'https://rylhgdjmjcaqcuyxybtd.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Zx1KSexoo_ME7zNO0hSw3A_ALX_YEl6';
+const LEGACY_API = 'http://127.0.0.1:8001';
+
+// Map old Python endpoints → edge function { type } values
+const ENDPOINT_TYPE_MAP = {
+  'chat': 'chat',
+  'generate-wrong-answers': 'generate-wrong-answers',
+  'generate-reading-comprehension': 'generate-reading-comprehension',
+  'generate-open-clause': 'generate-open-clause',
+  'generate-gap-fill': 'generate-gap-fill',
+  'generate-gap-fill-verb-form': 'generate-gap-fill-verb-form',
+  'structure-words': 'structure-words',
+};
+
+async function proxyToEdgeFunction(event) {
+  const url = event.request.url;
+  const endpoint = url.replace(LEGACY_API, '').replace(/^\//, '').split('?')[0];
+  const type = ENDPOINT_TYPE_MAP[endpoint] || endpoint;
+
+  // Read body once
+  const bodyText = await event.request.text();
+  let payload;
+  try { payload = JSON.parse(bodyText); } catch { payload = { raw_text: bodyText }; }
+
+  // Forward auth header if present (set by bridge.js via supabase client)
+  const authHeader = event.request.headers.get('Authorization');
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  };
+  if (authHeader) headers['Authorization'] = authHeader;
+
+  return fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ type, payload }),
+  });
+}
+
+const CACHE_NAME = 'umen-rechnik-v3';
 const urlsToCache = [
   '/app.html',
   '/index.html',
@@ -34,6 +76,12 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  // Intercept legacy Python API calls and proxy to edge function
+  if (event.request.url.startsWith(LEGACY_API)) {
+    event.respondWith(proxyToEdgeFunction(event));
+    return;
+  }
+
   // Only cache GET requests; POST/PUT/etc. should pass through.
   if (event.request.method !== 'GET') {
     event.respondWith(fetch(event.request));
