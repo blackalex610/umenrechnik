@@ -1,0 +1,23 @@
+{
+  "port": 3000,
+  "injectChanges": false,
+  "files": [
+    "*.html",
+    "*.css",
+    "*.js",
+    "supabase/frontend/*.js"
+  ],
+  "watchOptions": {
+    "ignored": [
+      "node_modules",
+      "flag-icons",
+      "supabase/functions",
+      "supabase/migrations",
+      ".git",
+      "service-worker.js"
+    ]
+  },
+  "server": {
+    "baseDir": "./"
+  }
+}

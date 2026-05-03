@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4361ee">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Речник">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    
+    <title>Умен Речник - Вход</title>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        // Theme toggle MUST be defined before body loads
+        function toggleTheme(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme') || 'dark';
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('appTheme', newTheme);
+            console.log('Theme toggled to:', newTheme);
+        }
+        // Initialize theme immediately
+        const savedTheme = localStorage.getItem('appTheme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
+    <script src="supabase/frontend/bridge-loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
+    <script src="script.js"></script>
+    <style>
+        /* Extra landing page enhancements */
+        .landing-hero {
+            padding: 60px 20px 30px 20px;
+            text-align: center;
+            background: linear-gradient(90deg, #4361ee 0%, #ff69b4 100%);
+            color: white;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 24px rgba(67,97,238,0.08);
+        }
+        .landing-hero h1 {
+            font-size: 2.8rem;
+            margin-bottom: 0.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            background: linear-gradient(45deg, #fff, #ffe4fa 70%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .landing-hero p {
+            font-size: 1.25rem;
+            color: #f4f4f4;
+            margin-bottom: 0.5rem;
+        }
+        .features-row {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        .feature-card-landing {
+            background: var(--card-bg, #23244d);
+            color: var(--text-primary, #fff);
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(67,97,238,0.08);
+            padding: 1.5rem 1.2rem;
+            min-width: 180px;
+            max-width: 220px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .feature-card-landing:hover {
+            transform: translateY(-5px) scale(1.03);
+            box-shadow: 0 8px 24px rgba(67,97,238,0.14);
+        }
+        .feature-card-landing .icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .feature-card-landing h3 {
+            font-size: 1.1rem;
+            margin: 0.5rem 0 0.2rem 0;
+            font-weight: 700;
+        }
+        .feature-card-landing p {
+            font-size: 0.95rem;
+            color: var(--text-secondary, #b9b9b9);
+        }
+        .landing-cta {
+            margin: 2rem 0 1rem 0;
+            text-align: center;
+        }
+        .landing-cta .cta-btn {
+            display: inline-block;
+            padding: 14px 36px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #4361ee 0%, #ff69b4 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            box-shadow: 0 2px 10px rgba(67,97,238,0.15);
+            text-decoration: none;
+        }
+        .landing-cta .cta-btn:hover {
+            background: linear-gradient(90deg, #3f37c9 0%, #ff1493 100%);
+            transform: translateY(-2px) scale(1.03);
+        }
+        .landing-or {
+            margin: 1rem 0;
+            color: #888;
+            font-size: 0.95rem;
+        }
+        .landing-footer {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-secondary, #b9b9b9);
+            margin-top: 2rem;
+            padding-bottom: 1rem;
+        }
+        @media (max-width: 700px) {
+            .features-row {
+                flex-direction: column;
+                gap: 1.2rem;
+            }
+            .landing-hero h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-hero">
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme(event)" aria-label="Превключи тема" title="Превключи тема" style="position: absolute; top: 1rem; right: 1rem;">
+            <span class="theme-icon theme-icon-moon">🌙</span>
+            <span class="theme-icon theme-icon-sun">☀️</span>
+        </button>
+        <h1>Умен Речник</h1>
+        <p>Вашият модерен асистент за учене на думи и езикови упражнения</p>
+        <p style="font-size:1.05rem; color: #ffe4fa;">Бързо. Интерактивно. Персонализирано. Безплатно.</p>
+    </div>
+
+    <div class="features-row">
+        <div class="feature-card-landing">
+            <div class="icon">📚</div>
+            <h3>Персонализиран речник</h3>
+            <p>Добавяйте и управлявайте свои думи, преводи и определения.</p>
+        </div>
+        <div class="feature-card-landing">
+            <div class="icon">🎯</div>
+            <h3>Интерактивни тестове</h3>
+            <p>Тествайте знанията си с разнообразни упражнения и автоматично генерирани въпроси.</p>
+        </div>
+        <div class="feature-card-landing">
+            <div class="icon">🔄</div>
+            <h3>Флаш карти</h3>
+            <p>Преговаряйте бързо и ефективно с помощта на флаш карти.</p>
+        </div>
+        <div class="feature-card-landing">
+            <div class="icon">🤖</div>
+            <h3>AI асистент</h3>
+            <p>Получавайте обяснения и помощ директно от вградения AI чатбот.</p>
+        </div>
+    </div>
+
+    <div class="landing-cta" id="landing-cta">
+        <div style="margin-bottom: 1rem;">
+            <div id="google-signin-container" style="display: flex; justify-content: center;"></div>
+        </div>
+        <div class="landing-or" id="landing-or">или</div>
+        <a href="app.html" class="cta-btn" id="guest-btn">Продължи като гост</a>
+        <div style="margin-top: 1rem; color: #888; font-size: 0.95rem;" id="guest-note">
+            Не се изисква регистрация. Вашите думи ще се запазят само на този компютър.
+        </div>
+    </div>
+
+    <div class="landing-footer">
+        © 2025 Умен Речник. Всички права запазени.
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer
+        onload="setTimeout(function(){ 
+            // Ensure the app has registered its GSI initializer before rendering the button
+            if(typeof initializeGoogleSignIn === 'function') {
+                initializeGoogleSignIn();
+            }
+            if(window.google && window.google.accounts && window.google.accounts.id && document.getElementById('google-signin-container')) {
+                window.google.accounts.id.renderButton(
+                    document.getElementById('google-signin-container'),
+                    { theme: 'filled_blue', size: 'large', width: 320 }
+                );
+            }
+        }, 250);"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide guest option if already signed in
+    try {
+        const user = sessionStorage.getItem('user');
+        if (user) {
+            // Hide guest-related elements
+            document.getElementById('guest-btn')?.remove();
+            document.getElementById('landing-or')?.remove();
+            document.getElementById('guest-note')?.remove();
+            // Show sign out button
+            const cta = document.getElementById('landing-cta');
+            if (cta && !document.getElementById('landing-signout')) {
+                const signOutBtn = document.createElement('button');
+                signOutBtn.className = 'cta-btn';
+                signOutBtn.id = 'landing-signout';
+                signOutBtn.textContent = 'Изход';
+                signOutBtn.onclick = function() {
+                    sessionStorage.clear();
+                    window.location.reload();
+                };
+                cta.appendChild(signOutBtn);
+            }
+        }
+    } catch (e) {}
+});
+</script>
+
+<!-- PWA Service Worker Registration -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then((registration) => {
+                    console.log('✅ ServiceWorker registered:', registration.scope);
+                })
+                .catch((error) => {
+                    console.log('❌ ServiceWorker registration failed:', error);
+                });
+        });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-signin-client_id" content="YOUR_CLIENT_ID">
+    
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4361ee">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Речник">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    
+    <title>Речник - Приложение</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="flag-icons/css/flag-icons.min.css">
+    <script src="translations.js"></script>
+    <script>
+        // Theme toggle MUST be defined before body loads
+        function toggleTheme(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme') || 'dark';
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('appTheme', newTheme);
+            console.log('Theme toggled to:', newTheme);
+        }
+        // Initialize theme immediately
+        const savedTheme = localStorage.getItem('appTheme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // Settings modal functions
+        function openSettings(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const overlay = document.getElementById('settings-modal-overlay');
+            if (overlay) {
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeSettings() {
+            const overlay = document.getElementById('settings-modal-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        function switchSettingsSection(section) {
+            // Hide all panels
+            const panels = document.querySelectorAll('.settings-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+
+            // Remove active class from all nav buttons
+            const navBtns = document.querySelectorAll('.settings-nav-btn');
+            navBtns.forEach(btn => btn.classList.remove('active'));
+
+            // Show selected panel
+            const selectedPanel = document.getElementById(section + '-panel');
+            if (selectedPanel) {
+                selectedPanel.classList.add('active');
+            }
+
+            // Mark button as active
+            const activeBtn = document.querySelector(`[data-section="${section}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+        }
+
+        // Close settings when clicking outside modal
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('settings-modal-overlay');
+            if (overlay) {
+                overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay) {
+                        closeSettings();
+                    }
+                });
+            }
+        });
+
+        // Save / Discard settings
+        function saveSettings() {
+            const lang = document.getElementById('language-select')?.value || 'bg';
+            const fontSize = document.getElementById('font-size')?.value || 'normal';
+            const flashcardSpeed = document.getElementById('flashcard-speed')?.value || 'normal';
+            const quizDifficulty = document.getElementById('quiz-difficulty')?.value || 'normal';
+            const cardDensity = document.getElementById('card-density')?.value || 'normal';
+            const soundEnabled = !!document.getElementById('sound-enabled')?.checked;
+            const notificationsEnabled = !!document.getElementById('notifications-enabled')?.checked;
+
+            const settings = {
+                language: lang,
+                fontSize,
+                flashcardSpeed,
+                quizDifficulty,
+                cardDensity,
+                soundEnabled,
+                notificationsEnabled
+            };
+            localStorage.setItem('appSettings', JSON.stringify(settings));
+            // Apply new language
+            if (typeof applyLanguage === 'function') {
+                applyLanguage(lang);
+            }
+            closeSettings();
+        }
+
+        function discardSettings() {
+            // reload saved settings into UI
+            loadSettingsToUI();
+            alert('Changes discarded');
+            closeSettings();
+        }
+
+        function loadSettingsToUI() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('appSettings') || '{}');
+                
+                // Load language and set active button
+                const savedLang = saved.language || 'bg';
+                const langInput = document.getElementById('language-select');
+                if (langInput) langInput.value = savedLang;
+                
+                // Activate the correct language button
+                const langBtns = document.querySelectorAll('.language-btn');
+                langBtns.forEach(btn => btn.classList.remove('active'));
+                const activeLangBtn = document.querySelector(`[data-lang="${savedLang}"]`);
+                if (activeLangBtn) activeLangBtn.classList.add('active');
+                
+                if (saved.fontSize) document.getElementById('font-size').value = saved.fontSize;
+                if (saved.flashcardSpeed) document.getElementById('flashcard-speed').value = saved.flashcardSpeed;
+                if (saved.quizDifficulty) document.getElementById('quiz-difficulty').value = saved.quizDifficulty;
+                if (saved.cardDensity) document.getElementById('card-density').value = saved.cardDensity;
+                if (typeof saved.soundEnabled !== 'undefined') document.getElementById('sound-enabled').checked = !!saved.soundEnabled;
+                if (typeof saved.notificationsEnabled !== 'undefined') document.getElementById('notifications-enabled').checked = !!saved.notificationsEnabled;
+            } catch (e) {
+                console.warn('No saved settings or invalid settings', e);
+            }
+        }
+
+        function selectLanguage(lang) {
+            // Remove active class from all language buttons
+            const langBtns = document.querySelectorAll('.language-btn');
+            langBtns.forEach(btn => btn.classList.remove('active'));
+
+            // Add active class to selected button
+            const selectedBtn = document.querySelector(`[data-lang="${lang}"]`);
+            if (selectedBtn) {
+                selectedBtn.classList.add('active');
+            }
+
+            // Store selected language in a hidden input for save
+            const langInput = document.getElementById('language-select');
+            if (langInput) {
+                langInput.value = lang;
+            }
+        }
+
+        // Load settings when opening modal
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSettingsToUI();
+        });
+
+        // Placeholder functions for settings actions (to be implemented)
+        function exportData() {
+            alert('📥 Функцията за експортиране ще бъде реализирана скоро!');
+        }
+
+        function importDataSettings() {
+            alert('📤 Функцията за импортиране на данни ще бъде реализирана скоро!');
+        }
+
+        function resetProgress() {
+            alert('🔄 Функцията за нулиране на прогрес ще бъде реализирана скоро!');
+        }
+
+        function clearAllData() {
+            alert('🗑️ Функцията за изтриване на всички данни ще бъде реализирана скоро!');
+        }
+
+        function openHelp() {
+            alert('❓ Страницата с помощ ще бъде добавена скоро!');
+        }
+    </script>
+    <script src="config.js"></script>
+    <script src="supabase/frontend/bridge-loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
+    <script src="script.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html" class="nav-brand">Умен Речник</a>
+        <div class="nav-links">
+            <button class="nav-link active" data-view="dictionary" data-i18n="nav-dictionary">Речник</button>
+            <button class="nav-link" data-view="flashcards" data-i18n="nav-flashcards">Флаш карти</button>
+            <button class="nav-link" data-view="quiz" data-i18n="nav-quiz">Тест</button>
+        </div>
+        <div class="nav-controls">
+            <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme(event)" data-i18n-title="toggle-theme" title="Превключи тема">
+                <span class="theme-icon-wrap">
+                    <span class="theme-icon theme-icon-moon">🌙</span>
+                    <span class="theme-icon theme-icon-sun">☀️</span>
+                </span>
+            </button>
+            <button class="settings-btn" id="settings-btn" onclick="openSettings(event)" data-i18n-title="open-settings" title="Отвори настройки">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.62l-1.92-3.32c-.12-.22-.39-.3-.61-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.09-.49 0-.61.22L2.74 8.87c-.12.21-.08.48.1.63l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.62l1.92 3.32c.12.22.39.3.61.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.49 0 .61-.22l1.92-3.32c.12-.22.07-.48-.1-.62l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                </svg>
+            </button>
+        </div>
+        <div id="google-signin-container"></div>
+    </nav>
+
+    <!-- Add chat trigger button here, after navbar -->
+    <button class="chat-trigger floating" aria-label="Отвори чат" title="Отвори чат">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z" fill="currentColor"/>
+        </svg>
+    </button>
+
+    <div class="container">
+        <div id="view-dictionary" class="view active">
+            <section id="add-word" class="card">
+                <h2 data-i18n="add-word-title">Добави нова дума</h2>
+                <form id="word-form">
+                    <div class="form-group">
+                        <label for="word" data-i18n="add-word-label">Дума</label>
+                        <input type="text" id="word" data-i18n-placeholder="add-word-placeholder" placeholder="Въведи дума" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="partOfSpeech" data-i18n="part-of-speech-label">Част на речта</label>
+                        <select id="partOfSpeech" required class="form-control">
+                            <option value="" data-i18n="part-of-speech-select">Изберете част на речта</option>
+                            <option value="noun" data-i18n="noun">Съществително име</option>
+                            <option value="verb" data-i18n="verb">Глагол</option>
+                            <option value="adjective" data-i18n="adjective">Прилагателно име</option>
+                            <option value="adverb" data-i18n="adverb">Наречие</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="definition" data-i18n="definition-label">Определение</label>
+                        <textarea id="definition" data-i18n-placeholder="definition-placeholder" placeholder="Въведи определение" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-icon"></span>
+                        <span data-i18n="add-word-btn">Добави дума</span>
+                    </button>
+                </form>
+                <div class="form-group import-controls">
+                    <input type="file" id="file-input" accept=".txt,.csv,.json" style="display: none;">
+                    <button type="button" id="file-select-btn" class="btn btn-secondary" data-i18n="import-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/>
+                        </svg>
+                        Импортирай от файл
+                    </button>
+                    <span id="file-name" class="file-name" data-i18n="no-file-selected">Няма избран файл</span>
+                </div>
+                <div id="status-message" class="status-container"></div>
+            </section>
+
+             <section id="dictionary" class="card">
+                <h2 data-i18n="dictionary-title">Моят речник</h2>
+                
+                <!-- Vocabulary Stats Banner -->
+                <div class="vocab-stats-banner" id="vocab-stats">
+                    <div class="stat-item">
+                        <span class="stat-icon">📚</span>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="total-words">Общо думи</span>
+                            <span class="stat-value" id="total-words-count">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">📁</span>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="total-folders">Папки</span>
+                            <span class="stat-value" id="total-folders-count">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">📊</span>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="current-view">Текущ изглед</span>
+                            <span class="stat-value" id="current-view-count">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="dictionary-controls">
+                    <div class="control-group">
+                        <label for="folder-filter" data-i18n="folder-label">Папка</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="folder-filter" class="form-control" style="flex: 1;">
+                                <option value="all" data-i18n="all-folders">Всички папки</option>
+                            </select>
+                            <button type="button" id="new-folder-btn" class="btn btn-secondary" data-i18n-title="new-folder-btn" title="Нова папка" style="padding: 0.5rem 1rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label for="pos-filter" data-i18n="pos-filter-label">Част на речта</label>
+                        <select id="pos-filter" class="form-control">
+                            <option value="any" data-i18n="all-pos">Всички части на речта</option>
+                            <option value="noun" data-i18n="noun">Съществително име</option>
+                            <option value="verb" data-i18n="verb">Глагол</option>
+                            <option value="adjective" data-i18n="adjective">Прилагателно име</option>
+                            <option value="adverb" data-i18n="adverb">Наречие</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="sort-by" data-i18n="sort-by-label">Подреди по</label>
+                        <select id="sort-by" class="form-control">
+                            <option value="newest" data-i18n="newest">Най-нови</option>
+                            <option value="oldest" data-i18n="oldest">Най-стари</option>
+                            <option value="az" data-i18n="alphabetical-az">По азбучен ред (А-Я)</option>
+                            <option value="za" data-i18n="alphabetical-za">По азбучен ред (Я-А)</option>
+                        </select>
+                    </div>
+                </div>
+                <ul id="word-list" class="custom-scrollbar"></ul>
+                <button id="undo-button" class="btn btn-secondary" style="display: none;" data-i18n="undo-btn">Отмени</button>
+            </section>
+        </div>
+
+        <div id="view-flashcards" class="view">
+            <section class="card">
+                <h2 data-i18n="flashcards-title">Флаш карти</h2>
+                <div class="flashcard-config">
+                    <div class="form-group">
+                        <label data-i18n="select-words-label">Избери думи за упражнение:</label>
+                        <div class="pos-legend">
+                            <div class="legend-item">
+                                <span class="legend-color pos-noun"></span>
+                                <span data-i18n="noun">Съществително име</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color pos-verb"></span>
+                                <span data-i18n="verb">Глагол</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color pos-adjective"></span>
+                                <span data-i18n="adjective">Прилагателно име</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color pos-adverb"></span>
+                                <span data-i18n="adverb">Наречие</span>
+                            </div>
+                        </div>
+                        <div class="word-selection">
+                            <div class="word-select-controls">
+                                <input type="search" id="flashcard-search" placeholder="Търси думи..." data-i18n-placeholder="flashcard-search-placeholder" class="search-input">
+                                <button type="button" class="btn btn-secondary" id="select-all-flashcards" data-i18n="select-all">Избери всички</button>
+                                <button type="button" class="btn btn-secondary" id="deselect-all-flashcards" data-i18n="deselect-all">Премахни всички</button>
+                            </div>
+                            <div class="word-checkboxes custom-scrollbar" id="flashcard-words">
+                                <!-- Words will be dynamically added here -->
+                            </div>
+                        </div>
+                    </div>
+                    <button id="generate-flashcards" class="btn btn-primary" data-i18n="start-practice">Започни упражнение</button>
+                </div>
+                <div id="flashcards-container"></div>
+            </section>
+        </div>
+
+        <div id="view-quiz" class="view">
+            <section class="card">
+                <h2 data-i18n="quiz-title">Тест</h2>
+                <button id="generate-quiz" class="btn btn-primary" data-i18n="start-quiz">Започни тест</button>
+                <div id="quiz-container"></div>
+                
+                <div id="quiz-history" class="quiz-history">
+                    <h3 data-i18n="quiz-history">История на тестовете</h3>
+                    <div class="quiz-history-list"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="settings-modal-overlay" id="settings-modal-overlay">
+        <div class="settings-modal">
+            <div class="settings-container">
+                <!-- Left Sidebar -->
+                <div class="settings-sidebar">
+                    <h2 data-i18n="settings-title">Настройки</h2>
+                    <div class="settings-nav">
+                        <button class="settings-nav-btn active" data-section="study" onclick="switchSettingsSection('study')">
+                            📚 <span data-i18n="study-settings">Учебни</span>
+                        </button>
+                        <button class="settings-nav-btn" data-section="display" onclick="switchSettingsSection('display')">
+                            🎨 <span data-i18n="display-settings">Екран</span>
+                        </button>
+                        <button class="settings-nav-btn" data-section="language" onclick="switchSettingsSection('language')">
+                            🌐 <span data-i18n="language-settings">Език</span>
+                        </button>
+                        <button class="settings-nav-btn" data-section="sound" onclick="switchSettingsSection('sound')">
+                            🔊 <span data-i18n="sound-settings">Звук</span>
+                        </button>
+                        <button class="settings-nav-btn" data-section="data" onclick="switchSettingsSection('data')">
+                            💾 <span data-i18n="data-settings">Данни</span>
+                        </button>
+                        <button class="settings-nav-btn" data-section="about" onclick="switchSettingsSection('about')">
+                            ℹ️ <span data-i18n="about-settings">За мен</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Content -->
+                <div class="settings-content-area">
+                    <!-- Study Settings -->
+                    <div class="settings-panel active" id="study-panel">
+                        <h3 data-i18n="study-settings">Учебни настройки</h3>
+                        <div class="settings-item">
+                            <label for="flashcard-speed" data-i18n="flashcard-speed-label">Скорост на флаш карти:</label>
+                            <select id="flashcard-speed" class="settings-select">
+                                <option value="slow">Бавна</option>
+                                <option value="normal" selected>Нормална</option>
+                                <option value="fast">Бърза</option>
+                            </select>
+                        </div>
+                        <div class="settings-item">
+                            <label for="quiz-difficulty" data-i18n="quiz-difficulty-label">Сложност на тест:</label>
+                            <select id="quiz-difficulty" class="settings-select">
+                                <option value="easy">Лесна</option>
+                                <option value="normal" selected>Нормална</option>
+                                <option value="hard">Трудна</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Display Settings -->
+                    <div class="settings-panel" id="display-panel">
+                        <h3 data-i18n="display-settings">Екран</h3>
+                        <div class="settings-item">
+                            <label for="font-size" data-i18n="font-size-label">Размер на шрифта:</label>
+                            <select id="font-size" class="settings-select">
+                                <option value="small">Малък</option>
+                                <option value="normal" selected>Нормален</option>
+                                <option value="large">Голям</option>
+                            </select>
+                        </div>
+                        <div class="settings-item">
+                            <label for="card-density" data-i18n="card-density-label">Плътност на картите:</label>
+                            <select id="card-density" class="settings-select">
+                                <option value="compact">Компактна</option>
+                                <option value="normal" selected>Нормална</option>
+                                <option value="spacious">Просторна</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Language Settings -->
+                    <div class="settings-panel" id="language-panel">
+                        <h3 data-i18n="language-settings">Език на интерфейса</h3>
+                        <div class="settings-item">
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">Изберете желания език:</p>
+                            <div class="language-buttons">
+                                <button class="language-btn active" data-lang="bg" onclick="selectLanguage('bg')">
+                                    <span class="flag fi fi-bg fis"></span>
+                                    <span class="lang-name">Български</span>
+                                </button>
+                                <button class="language-btn" data-lang="en" onclick="selectLanguage('en')">
+                                    <span class="flag fi fi-gb fis"></span>
+                                    <span class="lang-name">English</span>
+                                </button>
+                                <button class="language-btn" data-lang="es" onclick="selectLanguage('es')">
+                                    <span class="flag fi fi-es fis"></span>
+                                    <span class="lang-name">Español</span>
+                                </button>
+                                <button class="language-btn" data-lang="zh" onclick="selectLanguage('zh')">
+                                    <span class="flag fi fi-cn fis"></span>
+                                    <span class="lang-name">中文</span>
+                                </button>
+                                <button class="language-btn" data-lang="fr" onclick="selectLanguage('fr')">
+                                    <span class="flag fi fi-fr fis"></span>
+                                    <span class="lang-name">Français</span>
+                                </button>
+                                <button class="language-btn" data-lang="de" onclick="selectLanguage('de')">
+                                    <span class="flag fi fi-de fis"></span>
+                                    <span class="lang-name">Deutsch</span>
+                                </button>
+                            </div>
+                            <input type="hidden" id="language-select">
+                        </div>
+                    </div>
+
+                    <!-- Sound Settings -->
+                    <div class="settings-panel" id="sound-panel">
+                        <h3 data-i18n="sound-settings">Звук и известия</h3>
+                        <div class="settings-item">
+                            <label class="settings-checkbox">
+                                <input type="checkbox" id="sound-enabled" checked>
+                                <span data-i18n="sound-enabled">Звук включен</span>
+                            </label>
+                        </div>
+                        <div class="settings-item">
+                            <label class="settings-checkbox">
+                                <input type="checkbox" id="notifications-enabled" checked>
+                                <span data-i18n="notifications-enabled">Известия за прогрес</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Data Management -->
+                    <div class="settings-panel" id="data-panel">
+                        <h3>Управление на данни</h3>
+                        <div class="settings-item">
+                            <button class="settings-action-btn" onclick="exportData()">📥 Експортирай речника</button>
+                        </div>
+                        <div class="settings-item">
+                            <button class="settings-action-btn" onclick="importDataSettings()">📤 Импортирай речника</button>
+                        </div>
+                        <div class="settings-item">
+                            <button class="settings-action-btn settings-danger" onclick="resetProgress()">🔄 Нулирай прогрес</button>
+                        </div>
+                        <div class="settings-item">
+                            <button class="settings-action-btn settings-danger" onclick="clearAllData()">🗑️ Изтрий всички данни</button>
+                        </div>
+                    </div>
+
+                    <!-- About -->
+                    <div class="settings-panel" id="about-panel">
+                        <h3 data-i18n="about-settings">За приложението</h3>
+                        <div class="settings-item">
+                            <p class="settings-info">Умен Речник v1.0</p>
+                            <p class="settings-info-small">Лесен и интерактивен начин за учене на нови думи</p>
+                        </div>
+                        <div class="settings-item">
+                            <button class="settings-action-btn" onclick="openHelp()">❓ Помощ и поддръжка</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer actions -->
+            <div class="settings-footer">
+                <button class="btn btn-secondary" onclick="discardSettings()" data-i18n="discard-changes">Discard Changes</button>
+                <button class="btn btn-primary" onclick="saveSettings()" data-i18n="save-changes">Save Changes</button>
+            </div>
+
+            <!-- Close button -->
+            <button class="settings-close" onclick="closeSettings()" aria-label="Затвори">×</button>
+        </div>
+    </div>
+
+    <div class="chat-overlay">
+        <div class="chat-window">
+            <div class="chat-header">
+                <h3>Асистент</h3>
+                <button class="chat-close" aria-label="Затвори чат">×</button>
+            </div>
+            <div class="chat-messages custom-scrollbar">
+                <div class="message assistant">
+                    <div class="message-content">
+                        Здравейте! Как мога да ви помогна с речника?
+                    </div>
+                </div>
+            </div>
+            <div class="chat-input">
+                <textarea placeholder="Напишете съобщение..." rows="1"></textarea>
+                <button class="send-message" aria-label="Изпрати">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <button id="back-to-top" class="back-to-top" aria-label="Върни се в началото">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 4L4 12H9V20H15V12H20L12 4Z" fill="currentColor"/>
+        </svg>
+    </button>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('✅ ServiceWorker registered:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('❌ ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+.dictionary-controls {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+}
+
+.history-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.filters {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+#word-search-container {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--card-bg);
+    padding: 1rem 0;
+    margin: -1rem 0 1rem 0;
+}
+
+@media (max-width: 768px) {
+    .dictionary-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .filters {
+        flex-direction: column;
+    }
+    
+    .history-controls {
+        justify-content: center;
+    }
+}

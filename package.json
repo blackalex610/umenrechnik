@@ -1,0 +1,16 @@
+{
+  "name": "erazum-bilet",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "lite-server",
+    "dev": "lite-server"
+  },
+  "dependencies": {
+    "compromise": "^14.14.4",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "lite-server": "^2.6.1",
+    "supabase": "^2.98.0"
+  }
+}
