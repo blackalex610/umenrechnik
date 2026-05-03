@@ -32,6 +32,7 @@
         const savedTheme = localStorage.getItem('appTheme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
     </script>
+    <script src="config.js"></script>
     <script src="supabase/frontend/bridge-loader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
     <script src="script.js"></script>
@@ -190,19 +191,25 @@
         © 2025 Умен Речник. Всички права запазени.
     </div>
 
-    <script src="https://accounts.google.com/gsi/client" async defer
-        onload="setTimeout(function(){ 
-            // Ensure the app has registered its GSI initializer before rendering the button
-            if(typeof initializeGoogleSignIn === 'function') {
-                initializeGoogleSignIn();
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+    // Wait for the bridge to be ready, then render the sign-in button
+    (async function() {
+        // Poll until supabaseBridgeReady is defined (bridge-loader.js sets this)
+        async function waitForBridge(maxMs) {
+            const start = Date.now();
+            while (!window.supabaseBridgeReady && Date.now() - start < maxMs) {
+                await new Promise(r => setTimeout(r, 50));
             }
-            if(window.google && window.google.accounts && window.google.accounts.id && document.getElementById('google-signin-container')) {
-                window.google.accounts.id.renderButton(
-                    document.getElementById('google-signin-container'),
-                    { theme: 'filled_blue', size: 'large', width: 320 }
-                );
-            }
-        }, 250);"></script>
+            return window.supabaseBridgeReady ? await window.supabaseBridgeReady : null;
+        }
+
+        const bridge = await waitForBridge(5000);
+        if (typeof window.initializeGoogleSignIn === 'function') {
+            window.initializeGoogleSignIn();
+        }
+    })();
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Hide guest option if already signed in

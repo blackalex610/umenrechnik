@@ -11,7 +11,11 @@ export async function signInWithGoogle() {
 
 export async function getCurrentUser() {
   const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  if (error) {
+    // AuthSessionMissingError is expected when no user is logged in — not a real error
+    if (error.name === 'AuthSessionMissingError' || error.message?.includes('session')) return null;
+    throw error;
+  }
   return data.user;
 }
 
