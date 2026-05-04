@@ -51,7 +51,7 @@ async function proxyToEdgeFunction(event) {
   });
 }
 
-const CACHE_NAME = 'umen-rechnik-v3';
+const CACHE_NAME = 'umen-rechnik-v4';
 const urlsToCache = [
   '/app.html',
   '/index.html',
@@ -79,6 +79,15 @@ self.addEventListener('fetch', (event) => {
   // Intercept legacy Python API calls and proxy to edge function
   if (event.request.url.startsWith(LEGACY_API)) {
     event.respondWith(proxyToEdgeFunction(event));
+    return;
+  }
+
+  // Navigation requests can involve redirects; fetch by URL to ensure redirects are followed.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request.url)
+        .catch(() => caches.match('/index.html'))
+    );
     return;
   }
 
