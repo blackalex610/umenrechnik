@@ -7,6 +7,7 @@ create table if not exists public.profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
   avatar_url text,
+  tier text not null default 'free' check (tier in ('free', 'premium')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -77,6 +78,63 @@ for each row execute function public.set_updated_at();
 create trigger trg_usage_daily_updated_at
 before update on public.usage_daily
 for each row execute function public.set_updated_at();
+
+create or replace function public.enforce_words_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tier text;
+  v_count integer;
+begin
+  select coalesce(tier, 'free') into v_tier
+  from public.profiles
+  where user_id = new.user_id;
+
+  if coalesce(v_tier, 'free') = 'free' then
+    select count(*) into v_count
+    from public.words
+    where user_id = new.user_id;
+
+    if v_count >= 300 then
+      raise exception 'FREE_WORD_LIMIT_REACHED: Free users can store up to 300 words. Upgrade to Premium for unlimited words.'
+        using errcode = 'P0001';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_words_limit on public.words;
+create trigger trg_words_limit
+before insert on public.words
+for each row execute function public.enforce_words_limit();
+
+-- Protect plan changes from direct client updates.
+-- Only service_role may change tier.
+create or replace function public.protect_profile_tier_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.tier is distinct from old.tier then
+    if current_setting('request.jwt.claim.role', true) is distinct from 'service_role' then
+      raise exception 'tier can only be updated by service role';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_profiles_tier_protect on public.profiles;
+create trigger trg_profiles_tier_protect
+before update on public.profiles
+for each row execute function public.protect_profile_tier_update();
 
 create or replace function public.handle_new_user()
 returns trigger

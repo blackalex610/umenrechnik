@@ -1562,7 +1562,7 @@ function loadCustomFolders() {
     }
 }
 
-function addWord(word, definition) {
+async function addWord(word, definition) {
     const validated = validateInput(word, definition);
     if (!validated) return false;
 
@@ -1589,7 +1589,8 @@ function addWord(word, definition) {
         try {
             const user = JSON.parse(sessionStorage.getItem('user'));
             if (user) {
-                if (!saveUserDictionary(user.sub)) {
+                const saved = await Promise.resolve(saveUserDictionary(user.sub));
+                if (!saved) {
                     words.pop(); // rollback
                     throw new Error('Failed to save dictionary');
                 }
@@ -1602,7 +1603,11 @@ function addWord(word, definition) {
             return true;
         } catch (error) {
             console.error('Error saving word:', error);
-            if (error.name === 'QuotaExceededError') {
+            if (String(error?.message || '').includes('FREE_WORD_LIMIT_REACHED') || error?.code === 'FREE_WORD_LIMIT_REACHED') {
+                words.pop();
+                updateWordList();
+                showMessage('Достигнахте лимита за безплатен план: 300 думи. Надградете до Premium за неограничени думи.', 'red');
+            } else if (error.name === 'QuotaExceededError') {
                 showMessage('Паметта е пълна! Моля, изтрийте някои думи първо.', 'red');
             } else {
                 showMessage('Грешка при запазване. Моля, опитайте отново.', 'red');
@@ -1963,15 +1968,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize form submission
     const wordForm = document.getElementById('word-form');
     if (wordForm) {
-        wordForm.addEventListener('submit', (e) => {
+        wordForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const word = document.getElementById('word').value.trim();
             const definition = document.getElementById('definition').value.trim();
 
             if (word && definition) {
-                addWord(word, definition);
-                updateWordList();
-                wordForm.reset();
+                const added = await addWord(word, definition);
+                if (added) {
+                    updateWordList();
+                    wordForm.reset();
+                }
             }
         });
     }
@@ -3165,16 +3172,12 @@ function exportDictionary(format) {
     };
 
     window.saveUserDictionary = function() {
-        (async () => {
-            try {
-                const bridge = await getBridge();
-                if (!bridge) return;
-                await bridge.syncWords(words);
-            } catch (error) {
-                console.error('Supabase dictionary save failed:', error);
-            }
+        return (async () => {
+            const bridge = await getBridge();
+            if (!bridge) return false;
+            await bridge.syncWords(words);
+            return true;
         })();
-        return true;
     };
 
     window.signOut = async function() {
