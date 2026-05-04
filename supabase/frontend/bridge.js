@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient.js';
 import { signInWithGoogle, getCurrentUser, onAuthStateChange, signOutUser } from './auth.js';
 import { fetchWords, addWord, updateWord, deleteWord } from './words.js';
 import { saveQuizResultRemote, fetchQuizHistory } from './progress.js';
+import { upsertCurrentUserProfile } from './profiles.js';
 
 function toLegacyUser(user) {
   if (!user) return null;
@@ -10,7 +11,7 @@ function toLegacyUser(user) {
     sub: user.id,
     name: fullName,
     email: user.email || null,
-    picture: user.user_metadata?.avatar_url || null
+    picture: user.user_metadata?.avatar_url || user.user_metadata?.picture || null
   };
 }
 
@@ -97,8 +98,22 @@ async function structureWords(rawText) {
 
 async function init() {
   const user = await getCurrentUser();
+  if (user) {
+    try {
+      await upsertCurrentUserProfile(user);
+    } catch (e) {
+      console.warn('Profile upsert failed during init:', e);
+    }
+  }
   setSessionMirror(user);
-  onAuthStateChange((nextUser) => {
+  onAuthStateChange(async (nextUser) => {
+    if (nextUser) {
+      try {
+        await upsertCurrentUserProfile(nextUser);
+      } catch (e) {
+        console.warn('Profile upsert failed on auth change:', e);
+      }
+    }
     setSessionMirror(nextUser);
   });
 
@@ -113,8 +128,12 @@ async function init() {
         quiz_type: quizType,
         score,
         total_questions: totalQuestions,
-        words_count: selectedWords.length,
-        details: { word_ids: selectedWords.map((w) => w.id).filter(Boolean) }
+        words_count: Array.isArray(selectedWords) ? selectedWords.length : 0,
+        details: {
+          word_ids: Array.isArray(selectedWords)
+            ? selectedWords.map((w) => w?.id).filter(Boolean)
+            : []
+        }
       }),
     fetchQuizHistory: async (limit = 10) => {
       const rows = await fetchQuizHistory(limit);
