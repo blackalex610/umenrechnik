@@ -87,13 +87,50 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { type, payload } = await req.json();
+    // ── Input validation ────────────────────────────────────────────
+    const KNOWN_TYPES = new Set([
+      'chat', 'generate-wrong-answers', 'generate-reading-comprehension',
+      'generate-open-clause', 'generate-gap-fill', 'generate-gap-fill-verb-form',
+      'structure-words'
+    ]);
+    const MAX_STR = 2000; // chars per free-text field
+    const MAX_WORDS = 200; // max items in words array
+
+    let body: { type?: unknown; payload?: Record<string, unknown> };
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { type, payload } = body;
+
+    if (typeof type !== 'string' || !KNOWN_TYPES.has(type)) {
+      return new Response(JSON.stringify({ error: 'Invalid or missing type' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    function safeStr(v: unknown, max = MAX_STR): string {
+      return String(v ?? '').trim().slice(0, max);
+    }
+    // ───────────────────────────────────────────────────────────────
 
     if (type === 'chat') {
-      const message = String(payload?.message ?? '').trim();
-      const words = Array.isArray(payload?.words) ? payload.words : [];
+      const message = safeStr(payload?.message);
+      if (!message) {
+        return new Response(JSON.stringify({ error: 'message is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const words = (Array.isArray(payload?.words) ? payload.words : []).slice(0, MAX_WORDS);
       const wordSummary = words
-        .map((w: { word?: string; definition?: string }) => `- ${w.word ?? ''}: ${w.definition ?? ''}`)
+        .map((w: { word?: string; definition?: string }) => `- ${safeStr(w.word, 100)}: ${safeStr(w.definition, 300)}`)
         .join('\n');
 
       const systemPrompt =
@@ -111,7 +148,8 @@ Deno.serve(async (req) => {
     }
 
     if (type === 'generate-wrong-answers') {
-      const { word, partOfSpeech } = payload ?? {};
+      const word = safeStr(payload?.word, 100);
+      const partOfSpeech = safeStr(payload?.partOfSpeech, 50);
       const prompt = `Generate 1 correct and 3 plausible incorrect definitions for the word "${word}" (${partOfSpeech}). Return JSON only: {"correctAnswer": string, "wrongAnswers": string[]}.`;
 
       const text = await openAiCompletion([
@@ -126,8 +164,8 @@ Deno.serve(async (req) => {
     }
 
     if (type === 'generate-reading-comprehension') {
-      const words = Array.isArray(payload?.words) ? payload.words : [];
-      const questionCount = Number(payload?.questionCount ?? 3);
+      const words = (Array.isArray(payload?.words) ? payload.words : []).slice(0, MAX_WORDS).map((w: unknown) => safeStr(w, 100));
+      const questionCount = Math.min(20, Math.max(1, Number(payload?.questionCount ?? 3)));
       const prompt = `Create one reading passage in English using these words naturally: ${words.join(', ')}. Then create ${questionCount} multiple-choice questions with options A, B, C, D and provide an answer key. Use this exact structure:\nPassage:\n...\nQuestions:\n1. ...\nA) ...\nB) ...\nC) ...\nD) ...\nAnswers:\n1. A\n2. C`;
       const content = await openAiCompletion([
         { role: 'system', content: 'You are an English teacher producing reading comprehension material.' },
@@ -139,7 +177,8 @@ Deno.serve(async (req) => {
     }
 
     if (type === 'generate-open-clause') {
-      const { word, definition } = payload ?? {};
+      const word = safeStr(payload?.word, 100);
+      const definition = safeStr(payload?.definition);
       const prompt = `Return JSON only with keys question and answer. Build a short open question where the answer must be the word "${word}" and uses definition: "${definition}".`;
       const text = await openAiCompletion([
         { role: 'system', content: 'You return strict JSON.' },
@@ -151,7 +190,8 @@ Deno.serve(async (req) => {
     }
 
     if (type === 'generate-gap-fill') {
-      const { word, definition } = payload ?? {};
+      const word = safeStr(payload?.word, 100);
+      const definition = safeStr(payload?.definition);
       const prompt = `Return JSON only with keys sentence and answer. Create one sentence with a blank ____ where answer is "${word}". Use definition context: "${definition}".`;
       const text = await openAiCompletion([
         { role: 'system', content: 'You return strict JSON.' },
@@ -163,7 +203,8 @@ Deno.serve(async (req) => {
     }
 
     if (type === 'generate-gap-fill-verb-form') {
-      const { word, definition } = payload ?? {};
+      const word = safeStr(payload?.word, 100);
+      const definition = safeStr(payload?.definition);
       const prompt = `Return JSON only with keys sentence and answer. Create one sentence with blank ____ that requires a correct verb form derived from "${word}". Use definition context: "${definition}".`;
       const text = await openAiCompletion([
         { role: 'system', content: 'You return strict JSON.' },
@@ -175,7 +216,7 @@ Deno.serve(async (req) => {
     }
 
     if (type === 'structure-words') {
-      const rawText = String(payload?.raw_text ?? '');
+      const rawText = safeStr(payload?.raw_text, 8000);
       const prompt =
         'You will receive unstructured dictionary entries in English or Bulgarian. Return clean CSV-like lines with format word,definition,part of speech. No header. One per line. Part of speech must be one of noun, verb, adjective, adverb. If missing, infer it. If part of speech is Bulgarian, translate it. Keep original language for word/definition.\n\nInput:\n' + rawText;
       const content = await openAiCompletion([

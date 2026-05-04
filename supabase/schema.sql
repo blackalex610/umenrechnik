@@ -303,3 +303,41 @@ grant execute on function public.get_user_tier(uuid) to authenticated;
 grant execute on function public.increment_ai_usage_counter(uuid) to authenticated;
 grant execute on function public.consume_ai_request_quota(uuid) to authenticated;
 grant execute on function public.get_today_ai_usage(uuid) to authenticated;
+
+-- =============================================================
+-- Step 6: Row-Level Security (hardening)
+-- =============================================================
+
+alter table public.profiles enable row level security;
+alter table public.words enable row level security;
+alter table public.progress enable row level security;
+alter table public.usage_daily enable row level security;
+
+-- profiles: each user sees/edits only their own row
+create policy "profiles_select_own" on public.profiles
+  for select using (auth.uid() = user_id);
+create policy "profiles_insert_own" on public.profiles
+  for insert with check (auth.uid() = user_id);
+create policy "profiles_update_own" on public.profiles
+  for update using (auth.uid() = user_id);
+
+-- words: full CRUD scoped to owner
+create policy "words_select_own" on public.words
+  for select using (auth.uid() = user_id);
+create policy "words_insert_own" on public.words
+  for insert with check (auth.uid() = user_id);
+create policy "words_update_own" on public.words
+  for update using (auth.uid() = user_id);
+create policy "words_delete_own" on public.words
+  for delete using (auth.uid() = user_id);
+
+-- progress: users can insert and read their own results
+create policy "progress_select_own" on public.progress
+  for select using (auth.uid() = user_id);
+create policy "progress_insert_own" on public.progress
+  for insert with check (auth.uid() = user_id);
+
+-- usage_daily: read-only via RLS; all writes go through SECURITY DEFINER RPCs
+create policy "usage_select_own" on public.usage_daily
+  for select using (auth.uid() = user_id);
+
