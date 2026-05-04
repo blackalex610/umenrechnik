@@ -3110,9 +3110,8 @@ function exportDictionary(format) {
     };
 
     window.initializeGoogleSignIn = async function() {
-        const bridge = await getBridge();
         const authContainer = document.getElementById('google-signin-container');
-        if (!authContainer || !bridge) return;
+        if (!authContainer) return;
 
         authContainer.innerHTML = '';
         const user = JSON.parse(sessionStorage.getItem('user') || 'null');
@@ -3121,14 +3120,20 @@ function exportDictionary(format) {
             return;
         }
 
+        // Show the button immediately — wait for bridge only on click
         const btn = document.createElement('button');
         btn.className = 'cta-btn';
         btn.textContent = 'Влез с Google';
         btn.addEventListener('click', async () => {
             try {
+                const bridge = await getBridge();
+                if (!bridge) {
+                    showMessage('Грешка: модулът за вход не е зареден. Презаредете страницата.', 'red');
+                    return;
+                }
                 await bridge.signInWithGoogle();
             } catch (err) {
-                showMessage('Грешка при входа през Supabase', 'red');
+                showMessage('Грешка при входа', 'red');
                 console.error('Supabase sign-in error:', err);
             }
         });
