@@ -3244,6 +3244,17 @@ function exportDictionary(format) {
         })().catch((e) => console.error('Failed to load quiz history:', e));
     };
 
+    // When the Supabase bridge resolves auth late (e.g. PKCE code exchange completes after
+    // DOMContentLoaded), re-render the auth UI and load the user's dictionary.
+    window.addEventListener('supabaseAuthMirror', (e) => {
+        updateAuthUI();
+        const mirrorUser = e.detail;
+        if (mirrorUser && (window.location.pathname.includes('app.html') || window.location.pathname === '/app')) {
+            loadCustomFolders();
+            loadUserDictionary(mirrorUser.sub);
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', async () => {
         const isAppPage = window.location.pathname.includes('app.html') || window.location.pathname === '/app';
         const isGuest = localStorage.getItem('isGuest') === 'true';
@@ -3279,6 +3290,7 @@ function exportDictionary(format) {
             // Ensure dictionary loads after auth is actually hydrated.
             loadCustomFolders();
             loadUserDictionary(user.sub);
+            updateAuthUI();
 
             // Clean OAuth callback params from URL after successful hydration.
             if (hasOAuthCallback) {

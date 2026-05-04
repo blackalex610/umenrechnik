@@ -24,6 +24,8 @@ function setSessionMirror(user) {
   } else {
     sessionStorage.removeItem('user');
   }
+  // Notify the main script to re-render the auth UI (avatar, name, etc.)
+  window.dispatchEvent(new CustomEvent('supabaseAuthMirror', { detail: legacyUser }));
 }
 
 function normalizeWord(row) {
@@ -99,7 +101,30 @@ async function structureWords(rawText) {
 }
 
 async function init() {
-  const user = await getCurrentUser();
+  // When the URL contains OAuth callback params (PKCE code exchange), Supabase handles
+  // the exchange asynchronously. Calling getUser() before the exchange completes returns
+  // null, so we wait for the first SIGNED_IN / INITIAL_SESSION auth state event instead.
+  const hasOAuthParams =
+    window.location.hash.includes('access_token') ||
+    /[?&](code|access_token)=/.test(window.location.search);
+
+  let user;
+  if (hasOAuthParams) {
+    user = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), 8000);
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          clearTimeout(timer);
+          subscription.unsubscribe();
+          resolve(session?.user ?? null);
+        }
+      });
+    });
+    if (!user) user = await getCurrentUser();
+  } else {
+    user = await getCurrentUser();
+  }
+
   if (user) {
     try {
       await upsertCurrentUserProfile(user);
