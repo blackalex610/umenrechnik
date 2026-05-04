@@ -100,72 +100,92 @@ async function structureWords(rawText) {
   return data?.content || '';
 }
 
-async function init() {
-  // When the URL contains OAuth callback params (PKCE code exchange), Supabase handles
-  // the exchange asynchronously. Calling getUser() before the exchange completes returns
-  // null, so we wait for the first SIGNED_IN / INITIAL_SESSION auth state event instead.
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function safeUpsertProfile(user, source) {
+  if (!user) return;
+  try {
+    // Never block auth/UI on profile writes.
+    await Promise.race([
+      upsertCurrentUserProfile(user),
+      sleep(4000)
+    ]);
+  } catch (e) {
+    console.warn(`Profile upsert failed (${source}):`, e);
+  }
+}
+
+async function resolveInitialUser() {
   const hasOAuthParams =
     window.location.hash.includes('access_token') ||
     /[?&](code|access_token)=/.test(window.location.search);
 
-  let user;
-  if (hasOAuthParams) {
-    // Strategy: SIGNED_IN / INITIAL_SESSION may fire before OR after we register the
-    // listener (race with the Supabase client's async _initialize). Cover both cases:
-    //   1. Register the event listener immediately so we catch future events.
-    //   2. Simultaneously poll supabase.auth.getSession() — once the client finishes
-    //      processing hash tokens it stores them in localStorage and getSession() returns
-    //      the session even if we missed the event entirely.
-    //   Whichever resolves first wins.
-    let _sub;
-    const eventPromise = new Promise((resolve) => {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session?.user)) {
-          subscription.unsubscribe();
-          resolve(session?.user ?? null);
-        }
-      });
-      _sub = subscription;
-    });
-
-    const pollPromise = (async () => {
-      for (let i = 0; i < 30; i++) {
-        await new Promise((r) => setTimeout(r, 300));
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.user) return data.session.user;
-      }
-      return null;
-    })();
-
-    user = await Promise.race([eventPromise, pollPromise]);
-    // Clean up the event subscription if polling won the race.
-    if (_sub) { try { _sub.unsubscribe(); } catch (_) {} }
-    if (!user) user = await getCurrentUser();
-  } else {
-    user = await getCurrentUser();
+  // Fast path: if Supabase already restored session from storage, use it.
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session?.user) return data.session.user;
+  } catch (e) {
+    console.warn('getSession failed during init:', e);
   }
 
-  if (user) {
+  if (!hasOAuthParams) {
     try {
-      await upsertCurrentUserProfile(user);
-    } catch (e) {
-      console.warn('Profile upsert failed during init:', e);
+      return await getCurrentUser();
+    } catch {
+      return null;
     }
   }
-  setSessionMirror(user);
-  onAuthStateChange(async (nextUser) => {
-    if (nextUser) {
-      try {
-        await upsertCurrentUserProfile(nextUser);
-      } catch (e) {
-        console.warn('Profile upsert failed on auth change:', e);
+
+  // OAuth callback may complete before or after listeners are attached.
+  let sub = null;
+  const eventPromise = new Promise((resolve) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session?.user)) {
+        resolve(session?.user ?? null);
       }
-    }
-    setSessionMirror(nextUser);
+    });
+    sub = subscription;
   });
 
+  const pollPromise = (async () => {
+    for (let i = 0; i < 30; i += 1) {
+      await sleep(300);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) return data.session.user;
+      } catch {
+        // Keep polling on transient failures.
+      }
+    }
+    return null;
+  })();
+
+  const user = await Promise.race([eventPromise, pollPromise, sleep(10000).then(() => null)]);
+  if (sub) {
+    try { sub.unsubscribe(); } catch (_) {}
+  }
+
+  if (user) return user;
+  try {
+    return await getCurrentUser();
+  } catch {
+    return null;
+  }
+}
+
+function createBridgeApi() {
   return {
-    getCurrentUser: async () => toLegacyUser(await getCurrentUser()),
+    getCurrentUser: async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) return toLegacyUser(data.session.user);
+      } catch {
+        // Fall back to getUser call below.
+      }
+      return toLegacyUser(await getCurrentUser());
+    },
     signInWithGoogle,
     signOutUser,
     fetchWordsLegacy: async () => (await fetchWords()).map(normalizeWord),
@@ -195,6 +215,29 @@ async function init() {
     invokeAi,
     structureWords
   };
+}
+
+async function init() {
+  const api = createBridgeApi();
+
+  // Register continuous auth sync immediately.
+  onAuthStateChange((nextUser) => {
+    setSessionMirror(nextUser);
+    void safeUpsertProfile(nextUser, 'auth change');
+  });
+
+  // Hydrate initial auth state in the background so bridge startup cannot hang.
+  void resolveInitialUser()
+    .then((user) => {
+      setSessionMirror(user);
+      void safeUpsertProfile(user, 'init');
+    })
+    .catch((e) => {
+      console.warn('Initial auth hydration failed:', e);
+      setSessionMirror(null);
+    });
+
+  return api;
 }
 
 window.supabaseBridgeReady = init().then((api) => {
