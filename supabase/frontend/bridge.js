@@ -111,13 +111,20 @@ async function init() {
   let user;
   if (hasOAuthParams) {
     user = await new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(null), 8000);
+      const timer = setTimeout(() => resolve(null), 10000);
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        if (event === 'SIGNED_IN') {
+          // Hash tokens were processed — we have a real user.
           clearTimeout(timer);
           subscription.unsubscribe();
           resolve(session?.user ?? null);
+        } else if (event === 'INITIAL_SESSION' && session?.user) {
+          // Session already existed in storage (e.g. token refresh after reload).
+          clearTimeout(timer);
+          subscription.unsubscribe();
+          resolve(session.user);
         }
+        // INITIAL_SESSION with null: hash not yet processed — keep waiting for SIGNED_IN.
       });
     });
     if (!user) user = await getCurrentUser();

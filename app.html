@@ -216,7 +216,7 @@
       lines.push('ssUser: ' + (sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')).email : 'null'));
       lines.push('lsKeys: ' + Object.keys(localStorage).filter(k=>k.includes('sb-')||k.includes('supabase')).join(', ') || '(no sb- keys)');
 
-      const bridge = await Promise.race([window.supabaseBridgeReady, new Promise(r=>setTimeout(()=>r('TIMEOUT'),5000))]);
+      const bridge = await Promise.race([window.supabaseBridgeReady, new Promise(r=>setTimeout(()=>r('TIMEOUT'),12000))]);
       if (bridge === 'TIMEOUT') { lines.push('bridge: TIMED OUT'); }
       else if (!bridge) { lines.push('bridge: null'); }
       else {

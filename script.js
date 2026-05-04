@@ -3257,10 +3257,13 @@ function exportDictionary(format) {
 
     document.addEventListener('DOMContentLoaded', async () => {
         const isAppPage = window.location.pathname.includes('app.html') || window.location.pathname === '/app';
-        const isGuest = localStorage.getItem('isGuest') === 'true';
         const hasOAuthHash = /access_token=|refresh_token=|provider_token=/.test(window.location.hash || '');
         const hasOAuthQuery = /(^|&)(code|state|access_token|refresh_token)=/.test((window.location.search || '').replace(/^\?/, ''));
         const hasOAuthCallback = hasOAuthHash || hasOAuthQuery;
+        // Clear stale guest flag immediately when OAuth tokens are present — guest mode must
+        // never block authentication on the return trip from Google.
+        if (hasOAuthCallback) localStorage.removeItem('isGuest');
+        const isGuest = localStorage.getItem('isGuest') === 'true';
 
         const bridge = await getBridge();
         if (!bridge) {
