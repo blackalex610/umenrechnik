@@ -51,7 +51,7 @@ async function proxyToEdgeFunction(event) {
   });
 }
 
-const CACHE_NAME = 'umen-rechnik-v4';
+const CACHE_NAME = 'umen-rechnik-v5';
 const urlsToCache = [
   '/app.html',
   '/index.html',
@@ -79,6 +79,15 @@ self.addEventListener('fetch', (event) => {
   // Intercept legacy Python API calls and proxy to edge function
   if (event.request.url.startsWith(LEGACY_API)) {
     event.respondWith(proxyToEdgeFunction(event));
+    return;
+  }
+
+  // Always prefer fresh auth/bridge modules to avoid stale OAuth behavior.
+  if (event.request.url.includes('/supabase/frontend/')) {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
 
