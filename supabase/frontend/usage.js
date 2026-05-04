@@ -10,11 +10,21 @@ export async function getTodayUsage() {
 
   if (error) throw error;
   if (!data || data.length === 0) {
-    return { used: 0, limit: 50 };
+    return {
+      used: 0,
+      limit: 10,
+      tier: 'free',
+      isUnlimited: false
+    };
   }
 
+  const row = data[0] || {};
+  const isUnlimited = Boolean(row.is_unlimited);
+
   return {
-    used: Number(data[0].used ?? 0),
-    limit: Number(data[0].limit_value ?? 50)
+    used: Number(row.used ?? 0),
+    limit: isUnlimited ? null : Number(row.limit_value ?? 10),
+    tier: row.tier || (isUnlimited ? 'premium' : 'free'),
+    isUnlimited
   };
 }
