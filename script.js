@@ -3245,10 +3245,12 @@ function exportDictionary(format) {
         const isAppPage = window.location.pathname.includes('app.html') || window.location.pathname === '/app';
         const isGuest = localStorage.getItem('isGuest') === 'true';
         const hasOAuthHash = /access_token=|refresh_token=|provider_token=/.test(window.location.hash || '');
+        const hasOAuthQuery = /(^|&)(code|state|access_token|refresh_token)=/.test((window.location.search || '').replace(/^\?/, ''));
+        const hasOAuthCallback = hasOAuthHash || hasOAuthQuery;
 
         const bridge = await getBridge();
         if (!bridge) {
-            if (isAppPage && !isGuest && !hasOAuthHash) {
+            if (isAppPage && !isGuest && !hasOAuthCallback) {
                 window.location.href = 'index.html';
             }
             return;
@@ -3256,15 +3258,29 @@ function exportDictionary(format) {
 
         let user = await bridge.getCurrentUser();
 
-        // Supabase may need a moment to persist session from OAuth hash after redirect.
-        if (!user && hasOAuthHash) {
-            await new Promise((resolve) => setTimeout(resolve, 1200));
-            user = await bridge.getCurrentUser();
+        // Supabase may need a moment to exchange OAuth callback params and persist session.
+        if (!user && hasOAuthCallback) {
+            for (let i = 0; i < 5 && !user; i += 1) {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                user = await bridge.getCurrentUser();
+            }
         }
 
         if (!isAppPage && user) {
             window.location.href = 'app.html';
             return;
+        }
+
+        if (isAppPage && user) {
+            // Ensure dictionary loads after auth is actually hydrated.
+            loadCustomFolders();
+            loadUserDictionary(user.sub);
+
+            // Clean OAuth callback params from URL after successful hydration.
+            if (hasOAuthCallback) {
+                const cleanUrl = `${window.location.origin}/app.html`;
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
         }
 
         if (isAppPage && !user && !isGuest) {
