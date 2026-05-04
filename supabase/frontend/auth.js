@@ -7,15 +7,17 @@ export async function signInWithGoogle() {
     : 'https://umenrechnik.vercel.app/app.html';
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo }
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true
+    }
   });
   if (error) throw error;
 
-  // Some environments do not auto-navigate after signInWithOAuth.
-  // Fallback to explicit redirect when URL is available.
-  if (data?.url) {
-    window.location.assign(data.url);
+  if (!data?.url) {
+    throw new Error('OAuth URL missing from Supabase response');
   }
+  window.location.assign(data.url);
 }
 
 export async function getCurrentUser() {
