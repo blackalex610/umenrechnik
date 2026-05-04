@@ -199,38 +199,6 @@
     <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
     <script src="script.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <!-- TEMP DEBUG: remove after auth is confirmed working -->
-    <script>
-    (async function debugAuth() {
-      const div = document.createElement('div');
-      div.id = 'auth-debug';
-      div.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#111;color:#0f0;font:12px monospace;padding:10px;border:1px solid #0f0;z-index:99999;max-width:360px;max-height:260px;overflow:auto;border-radius:6px;word-break:break-all;';
-      div.innerHTML = 'AUTH DEBUG: loading...';
-      document.addEventListener('DOMContentLoaded', () => document.body.appendChild(div));
-
-      const lines = [];
-      lines.push('URL: ' + location.href.slice(0, 80));
-      lines.push('hash: ' + (location.hash.slice(0,60)||'(none)'));
-      lines.push('search: ' + (location.search.slice(0,80)||'(none)'));
-      lines.push('isGuest: ' + localStorage.getItem('isGuest'));
-      lines.push('ssUser: ' + (sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')).email : 'null'));
-
-      const bridge = await Promise.race([window.supabaseBridgeReady, new Promise(r=>setTimeout(()=>r('TIMEOUT'),12000))]);
-      // Capture lsKeys AFTER bridge resolves so session has time to be stored
-      lines.push('lsKeys: ' + (Object.keys(localStorage).filter(k=>k.includes('sb-')||k.includes('supabase')).join(', ')||'(none)'));
-      if (bridge === 'TIMEOUT') { lines.push('bridge: TIMED OUT'); }
-      else if (!bridge) { lines.push('bridge: null'); }
-      else {
-        lines.push('bridge: OK');
-        try {
-          const u = await bridge.getCurrentUser();
-          lines.push('bridgeUser: ' + (u ? u.email + ' / ' + u.sub : 'null'));
-          lines.push('picture: ' + (u ? (u.picture||'(none)') : 'n/a'));
-        } catch(e) { lines.push('bridgeUser ERR: '+e.message); }
-      }
-      div.innerHTML = lines.join('<br>');
-    })();
-    </script>
 </head>
 <body>
     <nav class="navbar">
