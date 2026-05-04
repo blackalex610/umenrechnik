@@ -7,7 +7,6 @@ __pycache__/
 
 # Credentials and secrets — never commit these
 credentials.json
-config.js
 *.key
 *.pem
 *.p12
