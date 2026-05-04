@@ -3,6 +3,7 @@ import { signInWithGoogle, getCurrentUser, onAuthStateChange, signOutUser } from
 import { fetchWords, addWord, updateWord, deleteWord } from './words.js';
 import { saveQuizResultRemote, fetchQuizHistory } from './progress.js';
 import { upsertCurrentUserProfile } from './profiles.js';
+import { getTodayUsage } from './usage.js';
 
 function toLegacyUser(user) {
   if (!user) return null;
@@ -213,7 +214,8 @@ function createBridgeApi() {
       }));
     },
     invokeAi,
-    structureWords
+    structureWords,
+    getTodayUsage
   };
 }
 

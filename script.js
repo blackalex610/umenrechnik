@@ -243,6 +243,45 @@ function shuffleArray(array) {
     return array;
 }
 
+async function refreshUsageMeter() {
+    const meter = document.getElementById('ai-usage-meter');
+    const generateQuizButton = document.getElementById('generate-quiz');
+    if (!meter) return;
+    try {
+        const bridge = await getBridge();
+        if (!bridge) { meter.style.display = 'none'; return; }
+        const usage = await bridge.getTodayUsage();
+        if (!usage) { meter.style.display = 'none'; return; }
+
+        meter.style.display = '';
+        if (usage.isUnlimited) {
+            meter.innerHTML = `<span class="usage-badge usage-unlimited">✨ Premium — неограничени тестове</span>`;
+            if (generateQuizButton) generateQuizButton.disabled = false;
+        } else {
+            const used = usage.used;
+            const limit = usage.limit;
+            const remaining = Math.max(0, limit - used);
+            const pct = Math.min(100, Math.round((used / limit) * 100));
+            const limitReached = used >= limit;
+            const colorClass = limitReached ? 'usage-full' : used >= limit * 0.8 ? 'usage-warn' : 'usage-ok';
+            meter.innerHTML = `
+                <div class="usage-meter-row">
+                    <span class="usage-label">AI тестове днес: <strong>${used}/${limit}</strong></span>
+                    ${limitReached
+                        ? `<span class="usage-badge usage-full">Лимитът е достигнат</span>`
+                        : `<span class="usage-badge ${colorClass}">${remaining} остават</span>`}
+                </div>
+                <div class="usage-bar-track">
+                    <div class="usage-bar-fill ${colorClass}" style="width:${pct}%"></div>
+                </div>
+                ${limitReached ? `<p class="usage-limit-msg">Надградете до <strong>Premium</strong> за неограничени AI тестове.</p>` : ''}`;
+            if (generateQuizButton) generateQuizButton.disabled = limitReached;
+        }
+    } catch (e) {
+        meter.style.display = 'none';
+    }
+}
+
 async function generateQuestion(questionCount = 10, quizType = 'multiple', selectedWords = words) {
     const quizContainer = document.getElementById('quiz-container');
     const generateQuizButton = document.getElementById('generate-quiz');
@@ -864,6 +903,7 @@ async function generateQuestion(questionCount = 10, quizType = 'multiple', selec
         if (modalOverlay) modalOverlay.remove();
     } finally {
         setLoading(generateQuizButton, false);
+        void refreshUsageMeter();
     }
 }
 
@@ -3255,6 +3295,7 @@ function exportDictionary(format) {
         if (mirrorUser && (window.location.pathname.includes('app.html') || window.location.pathname === '/app')) {
             loadCustomFolders();
             loadUserDictionary(mirrorUser.sub);
+            void refreshUsageMeter();
         }
     });
 
@@ -3297,6 +3338,7 @@ function exportDictionary(format) {
             loadCustomFolders();
             loadUserDictionary(user.sub);
             updateAuthUI();
+            void refreshUsageMeter();
 
             // Clean OAuth callback params from URL after successful hydration.
             if (hasOAuthCallback) {

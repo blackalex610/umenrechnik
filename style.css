@@ -1336,6 +1336,67 @@ label {
     border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+/* ===== AI Usage Meter ===== */
+.ai-usage-meter {
+    margin: 0.75rem 0 1rem;
+    font-size: 0.85rem;
+}
+.usage-meter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+}
+.usage-label {
+    color: var(--text-secondary);
+}
+.usage-badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.usage-ok {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.usage-warn {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.usage-full {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.usage-unlimited {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+.usage-bar-track {
+    height: 5px;
+    border-radius: 999px;
+    background: var(--border-color);
+    overflow: hidden;
+}
+.usage-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+    background: #10b981;
+}
+.usage-bar-fill.usage-warn { background: #f59e0b; }
+.usage-bar-fill.usage-full { background: #ef4444; }
+.usage-limit-msg {
+    margin: 0.45rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
 /* ===== Flashcards ===== */
 .flashcard-config {
     background: rgba(0, 0, 0, 0.2);
