@@ -3257,6 +3257,11 @@ function exportDictionary(format) {
             user = await bridge.getCurrentUser();
         }
 
+        if (!isAppPage && user) {
+            window.location.href = 'app.html';
+            return;
+        }
+
         if (isAppPage && !user && !isGuest) {
             window.location.href = 'index.html';
             return;

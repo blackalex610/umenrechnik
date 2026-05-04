@@ -1,7 +1,10 @@
 import { supabase } from './supabaseClient.js';
 
 export async function signInWithGoogle() {
-  const redirectTo = `${window.location.origin}/app.html`;
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const redirectTo = isLocal
+    ? `${window.location.origin}/app.html`
+    : 'https://umenrechnik.vercel.app/app.html';
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo }
