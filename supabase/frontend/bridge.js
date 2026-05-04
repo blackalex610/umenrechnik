@@ -18,6 +18,8 @@ function toLegacyUser(user) {
 function setSessionMirror(user) {
   const legacyUser = toLegacyUser(user);
   if (legacyUser) {
+    // Authenticated user must never remain in guest mode.
+    localStorage.removeItem('isGuest');
     sessionStorage.setItem('user', JSON.stringify(legacyUser));
   } else {
     sessionStorage.removeItem('user');

@@ -3126,6 +3126,8 @@ function exportDictionary(format) {
         btn.textContent = 'Влез с Google';
         btn.addEventListener('click', async () => {
             try {
+                // Prevent stale guest mode from overriding authenticated flow.
+                localStorage.removeItem('isGuest');
                 const bridge = await getBridge();
                 if (!bridge) {
                     showMessage('Грешка: модулът за вход не е зареден. Презаредете страницата.', 'red');
@@ -3180,6 +3182,7 @@ function exportDictionary(format) {
         if (!bridge) return;
         if (!confirm('Сигурни ли сте, че искате да излезете?')) return;
         await bridge.signOutUser();
+        localStorage.removeItem('isGuest');
         sessionStorage.removeItem('user');
         window.location.href = 'index.html';
     };
@@ -3272,6 +3275,7 @@ function exportDictionary(format) {
         }
 
         if (isAppPage && user) {
+            localStorage.removeItem('isGuest');
             // Ensure dictionary loads after auth is actually hydrated.
             loadCustomFolders();
             loadUserDictionary(user.sub);
