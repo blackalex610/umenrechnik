@@ -3237,15 +3237,32 @@ function exportDictionary(format) {
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
-        const bridge = await getBridge();
-        if (!bridge) return;
+        const isAppPage = window.location.pathname.includes('app.html') || window.location.pathname === '/app';
+        const isGuest = localStorage.getItem('isGuest') === 'true';
+        const hasOAuthHash = /access_token=|refresh_token=|provider_token=/.test(window.location.hash || '');
 
-        const user = await bridge.getCurrentUser();
-        if (window.location.pathname.includes('app.html') && !user) {
+        const bridge = await getBridge();
+        if (!bridge) {
+            if (isAppPage && !isGuest && !hasOAuthHash) {
+                window.location.href = 'index.html';
+            }
+            return;
+        }
+
+        let user = await bridge.getCurrentUser();
+
+        // Supabase may need a moment to persist session from OAuth hash after redirect.
+        if (!user && hasOAuthHash) {
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            user = await bridge.getCurrentUser();
+        }
+
+        if (isAppPage && !user && !isGuest) {
             window.location.href = 'index.html';
             return;
         }
-        if (!window.location.pathname.includes('app.html')) {
+
+        if (!isAppPage) {
             initializeGoogleSignIn();
         }
     });
