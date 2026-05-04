@@ -110,23 +110,36 @@ async function init() {
 
   let user;
   if (hasOAuthParams) {
-    user = await new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(null), 10000);
+    // Strategy: SIGNED_IN / INITIAL_SESSION may fire before OR after we register the
+    // listener (race with the Supabase client's async _initialize). Cover both cases:
+    //   1. Register the event listener immediately so we catch future events.
+    //   2. Simultaneously poll supabase.auth.getSession() — once the client finishes
+    //      processing hash tokens it stores them in localStorage and getSession() returns
+    //      the session even if we missed the event entirely.
+    //   Whichever resolves first wins.
+    let _sub;
+    const eventPromise = new Promise((resolve) => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN') {
-          // Hash tokens were processed — we have a real user.
-          clearTimeout(timer);
+        if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session?.user)) {
           subscription.unsubscribe();
           resolve(session?.user ?? null);
-        } else if (event === 'INITIAL_SESSION' && session?.user) {
-          // Session already existed in storage (e.g. token refresh after reload).
-          clearTimeout(timer);
-          subscription.unsubscribe();
-          resolve(session.user);
         }
-        // INITIAL_SESSION with null: hash not yet processed — keep waiting for SIGNED_IN.
       });
+      _sub = subscription;
     });
+
+    const pollPromise = (async () => {
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 300));
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.user) return data.session.user;
+      }
+      return null;
+    })();
+
+    user = await Promise.race([eventPromise, pollPromise]);
+    // Clean up the event subscription if polling won the race.
+    if (_sub) { try { _sub.unsubscribe(); } catch (_) {} }
     if (!user) user = await getCurrentUser();
   } else {
     user = await getCurrentUser();

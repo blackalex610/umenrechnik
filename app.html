@@ -214,9 +214,10 @@
       lines.push('search: ' + (location.search.slice(0,80)||'(none)'));
       lines.push('isGuest: ' + localStorage.getItem('isGuest'));
       lines.push('ssUser: ' + (sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')).email : 'null'));
-      lines.push('lsKeys: ' + Object.keys(localStorage).filter(k=>k.includes('sb-')||k.includes('supabase')).join(', ') || '(no sb- keys)');
 
       const bridge = await Promise.race([window.supabaseBridgeReady, new Promise(r=>setTimeout(()=>r('TIMEOUT'),12000))]);
+      // Capture lsKeys AFTER bridge resolves so session has time to be stored
+      lines.push('lsKeys: ' + (Object.keys(localStorage).filter(k=>k.includes('sb-')||k.includes('supabase')).join(', ')||'(none)'));
       if (bridge === 'TIMEOUT') { lines.push('bridge: TIMED OUT'); }
       else if (!bridge) { lines.push('bridge: null'); }
       else {
@@ -224,6 +225,7 @@
         try {
           const u = await bridge.getCurrentUser();
           lines.push('bridgeUser: ' + (u ? u.email + ' / ' + u.sub : 'null'));
+          lines.push('picture: ' + (u ? (u.picture||'(none)') : 'n/a'));
         } catch(e) { lines.push('bridgeUser ERR: '+e.message); }
       }
       div.innerHTML = lines.join('<br>');
