@@ -63,10 +63,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Daily usage gate. Increments only for authenticated user.
-    const { data: usageRows, error: usageError } = await supabase.rpc('increment_ai_usage', {
-      p_user_id: userData.user.id,
-      p_limit: 50
+    // Daily usage gate. Enforced atomically per tier before any OpenAI call.
+    const { data: usageRows, error: usageError } = await supabase.rpc('consume_ai_request_quota', {
+      p_user_id: userData.user.id
     });
 
     if (usageError) {
@@ -78,7 +77,11 @@ Deno.serve(async (req) => {
 
     const usage = usageRows?.[0];
     if (!usage?.allowed) {
-      return new Response(JSON.stringify({ error: 'Daily AI limit reached', usage }), {
+      return new Response(JSON.stringify({
+        error: 'AI_DAILY_LIMIT_REACHED',
+        message: 'Daily AI limit reached for your current plan.',
+        usage
+      }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
